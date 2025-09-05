@@ -3,10 +3,7 @@ QR Generator Pro - Flask Web Application (TEMPLATE SYNTAX FIXED)
 Created by: Shreeram
 Copyright © 2024 Shreeram. All rights reserved.
 
-TEMPLATE SYNTAX FIXES APPLIED:
-- Fixed Jinja2 template syntax errors
-- Proper {% %} and {{ }} usage
-- All template rendering issues resolved
+
 """
 
 import os
