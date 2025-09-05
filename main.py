@@ -1,31 +1,26 @@
 """
-QR Generator Pro - Flask Web Application (TEMPLATE SYNTAX FIXED)
+QR Generator Pro - Flask Web Application (VERCEL COMPATIBLE)
 Created by: Shreeram
 Copyright © 2024 Shreeram. All rights reserved.
 
 
-"""
 
 import os
 import io
 import uuid
+import base64
 from datetime import datetime
-from flask import Flask, render_template, request, jsonify, send_from_directory
+from flask import Flask, render_template, request, jsonify, Response
 import qrcode
 from PIL import Image, ImageDraw, ImageFont
-from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'shreeram-qr-generator-secret-key'  
-app.config['UPLOAD_FOLDER'] = 'static/generated'
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'shreeram-qr-generator-vercel-key')
 
-# Ensure upload directory exists
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-
-def generate_qr_with_headline(url, headline, fill_color="black", back_color="white", box_size=10, border=4):
+def generate_qr_with_headline_base64(url, headline, fill_color="black", back_color="white", box_size=10, border=4):
     """
-    Generate QR code with headline using the original functionality
+    Generate QR code with headline and return as base64 data URL
+    VERCEL-COMPATIBLE: No file system operations
     Based on Shreeram's original QR code generator script
     """
     try:
@@ -46,73 +41,47 @@ def generate_qr_with_headline(url, headline, fill_color="black", back_color="whi
 
         print(f"✅ QR code base image created: {img.size}")
 
-        # Try to load font with better error handling
+        # Load font - VERCEL COMPATIBLE approach
         font = None
-        font_size = 30
+        font_size = 60
 
-        # List of font paths to try (cross-platform)
-        font_paths = [
-            # Windows paths
-            "C:/Windows/Fonts/arial.ttf",
-            "C:/Windows/Fonts/calibri.ttf", 
-            "C:/Windows/Fonts/verdana.ttf",
-            # macOS paths
-            "/System/Library/Fonts/Arial.ttf",
-            "/System/Library/Fonts/Helvetica.ttc",
-            "/Library/Fonts/Arial.ttf",
-            # Linux paths
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-            "/usr/share/fonts/truetype/liberation/LiberationSans.ttf",
-            "/usr/share/fonts/TTF/DejaVuSans.ttf",
-        ]
+        try:
+            # Try to load default font - works in most environments
+            font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"  # Linux example
+            font_size = 30  # Bigger font
+            font = ImageFont.truetype(font_path, font_size)
+            print(f"✅ Loaded font: {font_path} with size {font_size}")
+        except Exception as e:
+            print(f"⚠️ Font loading failed, using basic font: {e}")
+            # Create a basic font fallback
+            font = ImageFont.load_default()
 
-        for font_path in font_paths:
-            try:
-                if os.path.exists(font_path):
-                    font = ImageFont.truetype(font_path, font_size)
-                    print(f"✅ Loaded font: {font_path}")
-                    break
-            except Exception as e:
-                print(f"❌ Failed to load font {font_path}: {e}")
-                continue
-
-        # Fallback to default font
-        if font is None:
-            try:
-                font = ImageFont.load_default()
-                print("⚠️ Using default system font")
-            except Exception as e:
-                print(f"❌ Even default font failed: {e}")
-                # Create a minimal working font
-                font = ImageFont.load_default()
-
-        # Measure text size with better compatibility
+        # Measure text size
         dummy_img = Image.new("RGB", (1, 1))
         dummy_draw = ImageDraw.Draw(dummy_img)
 
         try:
-            # Try new PIL method first
+            # Try new PIL method
             bbox = dummy_draw.textbbox((0, 0), headline, font=font)
             text_width, text_height = bbox[2] - bbox[0], bbox[3] - bbox[1]
-            print(f"📏 Text size (new method): {text_width}x{text_height}")
+            print(f"📏 Text size: {text_width}x{text_height}")
         except AttributeError:
-            # Fallback to older PIL method
+            # Fallback for older PIL versions
             try:
                 text_width, text_height = dummy_draw.textsize(headline, font=font)
-                print(f"📏 Text size (old method): {text_width}x{text_height}")
+                print(f"📏 Text size (fallback): {text_width}x{text_height}")
             except:
                 # Ultimate fallback
-                text_width = len(headline) * 15  # Approximate
+                text_width = len(headline) * 15
                 text_height = 30
                 print(f"📏 Text size (estimated): {text_width}x{text_height}")
 
-        # Adjust new image size to fit headline
+        # Create final image with headline
         img_width, img_height = img.size
-        new_height = img_height + text_height + 40  # Extra padding
+        new_height = img_height + text_height + 40
         new_img = Image.new("RGB", (img_width, new_height), back_color)
 
-        # Paste QR code below the headline area
+        # Paste QR code below headline
         new_img.paste(img, (0, text_height + 30))
 
         print(f"🖼️ Final image size: {img_width}x{new_height}")
@@ -121,22 +90,31 @@ def generate_qr_with_headline(url, headline, fill_color="black", back_color="whi
         draw = ImageDraw.Draw(new_img)
         text_x = max(0, (img_width - text_width) // 2)
 
-        # Create bold effect by drawing text multiple times (Shreeram's original technique)
+        # Create bold effect (Shreeram's original technique)
         offsets = [(0, 0), (1, 0), (0, 1), (1, 1)]
         for dx, dy in offsets:
             try:
                 draw.text((text_x + dx, 10 + dy), headline, font=font, fill=fill_color)
             except Exception as e:
-                print(f"⚠️ Text drawing error: {e}")
-                # Try simpler approach
+                print(f"⚠️ Text drawing issue: {e}")
                 draw.text((text_x, 10), headline, font=font, fill=fill_color)
                 break
 
-        print("✅ QR code with headline generated successfully")
-        return new_img
+        # VERCEL COMPATIBILITY: Convert to base64 data URL instead of saving file
+        buffer = io.BytesIO()
+        new_img.save(buffer, format='PNG', quality=95)
+        buffer.seek(0)
+
+        # Create base64 data URL
+        img_data = buffer.getvalue()
+        img_base64 = base64.b64encode(img_data).decode('utf-8')
+        data_url = f"data:image/png;base64,{img_base64}"
+
+        print("✅ QR code generated as base64 data URL successfully")
+        return data_url, img_data
 
     except Exception as e:
-        print(f"❌ Error in generate_qr_with_headline: {str(e)}")
+        print(f"❌ Error in generate_qr_with_headline_base64: {str(e)}")
         import traceback
         traceback.print_exc()
         raise e
@@ -149,10 +127,10 @@ def index():
 
 @app.route('/generate', methods=['POST'])
 def generate_qr():
-    """Generate QR code with custom options"""
+    """Generate QR code with custom options - VERCEL COMPATIBLE"""
     try:
         print("\n" + "="*50)
-        print("🚀 QR Generation Request Received")
+        print("🚀 QR Generation Request (Vercel Compatible)")
         print("="*50)
 
         # Get form data
@@ -168,12 +146,11 @@ def generate_qr():
         print(f"   Fill Color: {fill_color}")
         print(f"   Back Color: {back_color}")
 
-        # Get numeric values with error handling
+        # Get numeric values
         try:
             box_size = int(request.form.get('box_size', 10))
             border = int(request.form.get('border', 4))
-        except (ValueError, TypeError) as e:
-            print(f"⚠️ Invalid numeric values, using defaults: {e}")
+        except (ValueError, TypeError):
             box_size = 10
             border = 4
 
@@ -186,41 +163,37 @@ def generate_qr():
             return jsonify({'error': 'URL is required'}), 400
 
         if not headline:
-            headline = ""
+            headline = "QR Code by Shreeram"
             print(f"📝 Using default headline: {headline}")
 
-        # Generate unique filename
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        # Generate unique ID for this QR code
         unique_id = str(uuid.uuid4())[:8]
-        filename = f"qr_shreeram_{timestamp}_{unique_id}.png"
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        qr_id = f"qr_{timestamp}_{unique_id}"
 
-        print(f"💾 Target file: {filepath}")
+        print(f"🆔 QR ID: {qr_id}")
 
-        # Generate QR code
-        print("🎨 Starting QR generation...")
-        qr_img = generate_qr_with_headline(url, headline, fill_color, back_color, box_size, border)
+        # Generate QR code as base64 data URL (VERCEL COMPATIBLE)
+        print("🎨 Starting in-memory QR generation...")
+        data_url, img_data = generate_qr_with_headline_base64(url, headline, fill_color, back_color, box_size, border)
 
-        # Save the image
-        print(f"💾 Saving image to: {filepath}")
-        qr_img.save(filepath, 'PNG', quality=95)
-
-        # Verify file was saved
-        if os.path.exists(filepath):
-            file_size = os.path.getsize(filepath)
-            print(f"✅ File saved successfully: {file_size} bytes")
-        else:
-            raise Exception("File was not saved properly")
+        # Store in session or return directly
+        file_size_kb = round(len(img_data) / 1024, 1)
 
         response_data = {
             'success': True,
-            'filename': filename,
-            'download_url': f'/download/{filename}',
-            'preview_url': f'/static/generated/{filename}',
+            'qr_id': qr_id,
+            'data_url': data_url,  # Base64 data URL for immediate display
+            'download_url': f'/download/{qr_id}',  # For download endpoint
+            'size_kb': file_size_kb,
             'message': f'QR code generated successfully by Shreeram!'
         }
 
-        print("🎉 Response prepared successfully")
+        # Store the image data in memory for download (simple approach)
+        # In production, you might use Redis or database
+        app.config[f'qr_data_{qr_id}'] = img_data
+
+        print("🎉 Response prepared successfully (Vercel Compatible)")
         print("="*50 + "\n")
 
         return jsonify(response_data)
@@ -233,76 +206,73 @@ def generate_qr():
         print("="*50 + "\n")
         return jsonify({'error': error_msg}), 500
 
-@app.route('/download/<filename>')
-def download_file(filename):
-    """Download generated QR code"""
+@app.route('/download/<qr_id>')
+def download_qr(qr_id):
+    """Download QR code - VERCEL COMPATIBLE"""
     try:
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        if not os.path.exists(filepath):
-            print(f"❌ File not found: {filepath}")
-            return jsonify({'error': 'File not found'}), 404
+        print(f"📥 Download request for QR ID: {qr_id}")
 
-        print(f"📥 Downloading: {filename}")
-        return send_from_directory(
-            app.config['UPLOAD_FOLDER'], 
-            filename, 
-            as_attachment=True,
-            download_name=f"shreeram_qrcode_{filename}"
+        # Retrieve image data from memory
+        img_data = app.config.get(f'qr_data_{qr_id}')
+
+        if not img_data:
+            print(f"❌ QR data not found for ID: {qr_id}")
+            return jsonify({'error': 'QR code not found or expired'}), 404
+
+        print(f"✅ Serving download for QR: {qr_id}")
+
+        return Response(
+            img_data,
+            mimetype='image/png',
+            headers={
+                'Content-Disposition': f'attachment; filename=shreeram_qr_{qr_id}.png',
+                'Content-Type': 'image/png'
+            }
         )
+
     except Exception as e:
         print(f"❌ Download error: {e}")
         return jsonify({'error': 'Download failed'}), 500
 
-@app.route('/preview/<filename>')  
-def preview_file(filename):
-    """Preview generated QR code"""
-    try:
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        if not os.path.exists(filepath):
-            print(f"❌ Preview file not found: {filepath}")
-            return jsonify({'error': 'File not found'}), 404
-
-        return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
-    except Exception as e:
-        print(f"❌ Preview error: {e}")
-        return jsonify({'error': 'Preview failed'}), 500
-
 @app.route('/gallery')
 def gallery():
-    """Show gallery of generated QR codes"""
+    """Gallery page - VERCEL COMPATIBLE (simplified)"""
     try:
-        print("🖼️ Loading gallery page")
-        files = []
-        if os.path.exists(app.config['UPLOAD_FOLDER']):
-            for filename in os.listdir(app.config['UPLOAD_FOLDER']):
-                if filename.lower().endswith(('.png', '.jpg', '.jpeg')):
-                    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-                    if os.path.exists(file_path):
-                        file_stats = os.stat(file_path)
-                        files.append({
-                            'filename': filename,
-                            'created': datetime.fromtimestamp(file_stats.st_ctime).strftime('%Y-%m-%d %H:%M'),
-                            'size': round(file_stats.st_size / 1024, 1)  # KB
-                        })
+        print("🖼️ Loading gallery page (Vercel Compatible)")
 
-        # Sort by creation time, newest first
-        files.sort(key=lambda x: x['created'], reverse=True)
-        print(f"📊 Found {len(files)} QR code files")
-        return render_template('gallery.html', files=files)
+        # In Vercel, we can't store files persistently
+        # This is a simplified version that shows recently generated QR codes from memory
+        recent_qrs = []
+
+        # Get recent QR codes from app config (limited approach)
+        for key in app.config:
+            if key.startswith('qr_data_'):
+                qr_id = key.replace('qr_data_', '')
+                recent_qrs.append({
+                    'id': qr_id,
+                    'created': 'Recently generated',
+                    'size': f"{round(len(app.config[key]) / 1024, 1)} KB"
+                })
+
+        print(f"📊 Found {len(recent_qrs)} recent QR codes in memory")
+        return render_template('gallery.html', qr_codes=recent_qrs)
+
     except Exception as e:
         print(f"❌ Gallery error: {str(e)}")
-        return render_template('gallery.html', files=[], error=str(e))
+        return render_template('gallery.html', qr_codes=[], error=str(e))
 
 @app.route('/test')
 def test():
-    """Test route to verify the app is working"""
-    print("🧪 Test endpoint accessed")
+    """Test route to verify the app is working on Vercel"""
+    print("🧪 Test endpoint accessed on Vercel")
     return jsonify({
         'status': 'working',
-        'message': 'Shreeram\'s QR Generator is running perfectly!',
+        'message': 'Shreeram\'s QR Generator is running on Vercel!',
         'timestamp': datetime.now().isoformat(),
-        'upload_folder': app.config['UPLOAD_FOLDER'],
-        'upload_folder_exists': os.path.exists(app.config['UPLOAD_FOLDER'])
+        'platform': 'Vercel Serverless',
+        'vercel_compatible': True,
+        'python_version': os.sys.version,
+        'environment': 'production' if not app.debug else 'development'
     })
 
 @app.errorhandler(404)
@@ -311,14 +281,15 @@ def not_found(error):
 
 @app.errorhandler(500)
 def internal_error(error):
-    return jsonify({'error': 'Internal server error'}), 500
+    return jsonify({'error': 'Internal server error', 'details': str(error)}), 500
 
+# Vercel entry point
 if __name__ == '__main__':
-    print("🚀 QR Generator Pro by Shreeram - TEMPLATE SYNTAX FIXED")
+    print("🚀 QR Generator Pro by Shreeram - VERCEL COMPATIBLE VERSION")
     print("📧 Copyright © 2024 Shreeram. All rights reserved.")
-    print("🔧 All template syntax errors fixed!")
-    print("🌐 Starting server at http://localhost:5000")
-    print("🔧 Debug mode: ON")
-    print(f"📁 Upload folder: {app.config['UPLOAD_FOLDER']}")
-    print(f"📁 Folder exists: {os.path.exists(app.config['UPLOAD_FOLDER'])}")
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    print("☁️ Optimized for Vercel serverless deployment")
+    print("🌐 Starting server...")
+    app.run(debug=True)
+else:
+    # When deployed on Vercel
+    print("☁️ Running on Vercel serverless environment")
