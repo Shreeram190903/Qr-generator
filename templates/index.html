@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block title %}QR Code Generator by Shreeram - Create Custom QR Codes{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <!-- Hero Section -->
+    <div class="row justify-content-center mb-5">
+        <div class="col-lg-8 text-center">
+            <h1 class="display-4 fw-bold text-primary mb-3">
+                <i class="bi bi-qr-code-scan"></i> QR Generator Pro
+            </h1>
+            <p class="lead text-muted">
+                Create beautiful, customized QR codes with headlines and styling options.
+                <br><strong></strong>
+            </p>
+            <div class="badge bg-success fs-6 mb-3">
+                <i class="bi bi-star-fill me-1"></i>Enhanced QR Generation Technology
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- QR Generator Form -->
+        <div class="col-lg-7 mb-4">
+            <div class="card shadow-lg border-0">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0"><i class="bi bi-gear-fill me-2"></i>QR Code Settings</h4>
+                    <small>Best QR Generator</small>
+                </div>
+                <div class="card-body p-4">
+                    <form id="qrForm">
+                        <!-- URL Input -->
+                        <div class="mb-4">
+                            <label for="url" class="form-label fw-bold">
+                                <i class="bi bi-link-45deg text-primary me-1"></i>URL or Text
+                            </label>
+                            <input type="text" class="form-control form-control-lg" id="url" name="url" 
+                                   placeholder="https://example.com" required>
+                            <div class="form-text">Enter the URL or text you want to encode in the QR code</div>
+                        </div>
+
+                        <!-- Headline Input -->
+                        <div class="mb-4">
+                            <label for="headline" class="form-label fw-bold">
+                                <i class="bi bi-type text-primary me-1"></i>Headline
+                            </label>
+                            <input type="text" class="form-control" id="headline" name="headline" 
+                                   placeholder="Add Headline" maxlength="50" value="">
+                            <div class="form-text">Add a custom headline above your QR code</div>
+                        </div>
+
+                        <!-- Customization Options -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label for="fill_color" class="form-label fw-bold">
+                                    <i class="bi bi-palette-fill text-primary me-1"></i>QR Code Color
+                                </label>
+                                <input type="color" class="form-control form-control-color" 
+                                       id="fill_color" name="fill_color" value="#000000">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="back_color" class="form-label fw-bold">
+                                    <i class="bi bi-paint-bucket text-primary me-1"></i>Background Color
+                                </label>
+                                <input type="color" class="form-control form-control-color" 
+                                       id="back_color" name="back_color" value="#ffffff">
+                            </div>
+                        </div>
+
+                        <!-- Advanced Options -->
+                        <div class="accordion mb-4" id="advancedOptions">
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" 
+                                            data-bs-toggle="collapse" data-bs-target="#collapseAdvanced">
+                                        <i class="bi bi-sliders me-2"></i>Advanced Options
+                                    </button>
+                                </h2>
+                                <div id="collapseAdvanced" class="accordion-collapse collapse" 
+                                     data-bs-parent="#advancedOptions">
+                                    <div class="accordion-body">
+                                        <div class="row">
+                                            <div class="col-md-6 mb-3">
+                                                <label for="box_size" class="form-label">Box Size</label>
+                                                <input type="range" class="form-range" id="box_size" 
+                                                       name="box_size" min="5" max="20" value="10">
+                                                <div class="d-flex justify-content-between">
+                                                    <small>5</small>
+                                                    <small id="box_size_value">10</small>
+                                                    <small>20</small>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6 mb-3">
+                                                <label for="border" class="form-label">Border Size</label>
+                                                <input type="range" class="form-range" id="border" 
+                                                       name="border" min="1" max="10" value="4">
+                                                <div class="d-flex justify-content-between">
+                                                    <small>1</small>
+                                                    <small id="border_value">4</small>
+                                                    <small>10</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Generate Button -->
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg" id="generateBtn">
+                                <i class="bi bi-magic me-2"></i>Generate QR Code
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Preview & Download Area -->
+        <div class="col-lg-5">
+            <div class="card shadow-lg border-0 h-100">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0"><i class="bi bi-eye-fill me-2"></i>Preview & Download</h4>
+                </div>
+                <div class="card-body p-4 text-center">
+                    <div id="loading" class="d-none">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2 text-muted">Generating your QR code...</p>
+                    </div>
+
+                    <div id="preview-area" class="d-none">
+                        <img id="qr-preview" src="" alt="QR Code Preview by Shreeram" 
+                             class="img-fluid mb-3 border rounded shadow-sm">
+                        <div>
+                            <button type="button" class="btn btn-success me-2" id="downloadBtn">
+                                <i class="bi bi-download me-1"></i>Download
+                            </button>
+                            <button type="button" class="btn btn-outline-primary" onclick="generateNew()">
+                                <i class="bi bi-plus-circle me-1"></i>Generate New
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="placeholder" class="text-muted">
+                        <i class="bi bi-qr-code display-1 text-muted mb-3"></i>
+                        <p>Your QR code will appear here</p>
+                        <p><small>Fill out the form and click "Generate QR Code" to get started</small></p>
+                        <div class="mt-3">
+                            <small class="text-success">
+                                <i class="bi bi-shield-check me-1"></i>
+                                Powered by QR Technology
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Alert Container -->
+<div class="position-fixed top-0 end-0 p-3" style="z-index: 1080">
+    <div id="alertContainer"></div>
+</div>
+{% endblock %}
