@@ -3,7 +3,7 @@ QR Generator Pro - Flask Web Application (VERCEL COMPATIBLE)
 Created by: Shreeram
 Copyright © 2024 Shreeram. All rights reserved.
 
-
+"""
 
 import os
 import io
