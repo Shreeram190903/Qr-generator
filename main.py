@@ -3,6 +3,11 @@ QR Generator Pro - Flask Web Application (VERCEL COMPATIBLE)
 Created by: Shreeram
 Copyright © 2024 Shreeram. All rights reserved.
 
+VERCEL COMPATIBILITY FIXES:
+- In-memory QR code generation (no file system writes)
+- Base64 data URLs for immediate display
+- Serverless-friendly font loading
+- No local file storage dependencies
 """
 
 import os
@@ -45,12 +50,16 @@ def generate_qr_with_headline_base64(url, headline, fill_color="black", back_col
         font = None
         font_size = 60
 
-        
-        font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"  # Linux example
-        font_size = 30  # Bigger font
-        font = ImageFont.truetype(font_path, font_size)
-        print(f"✅ Loaded font: {font_path} with size {font_size}")
-        
+        try:
+            # Try to load default font - works in most environments
+            font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"  # Linux example
+            font_size = 30  # Bigger font
+            font = ImageFont.truetype(font_path, font_size)
+            print(f"✅ Loaded font: {font_path} with size {font_size}")
+        except Exception as e:
+            print(f"⚠️ Font loading failed, using basic font: {e}")
+            # Create a basic font fallback
+            font = ImageFont.load_default()
 
         # Measure text size
         dummy_img = Image.new("RGB", (1, 1))
