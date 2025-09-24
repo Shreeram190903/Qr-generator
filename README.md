@@ -15,7 +15,7 @@ A beautiful, serverless Flask QR code generator optimized for Vercel deployment 
 - **Auto-scaling** - Handles traffic spikes automatically
 
 ### 🎨 Enhanced Features
-- **Custom headlines** - Based on Shreeram's original QR script
+- **Custom headlines** - Based on QR script
 - **Color customization** - QR code and background colors
 - **Real-time preview** - Instant generation and display
 - **Responsive design** - Works on all devices
@@ -164,10 +164,9 @@ QRGeneratorByShreeram.testVercelBackend()
 
 ## 👨‍💻 Created by Shreeram
 
-This QR Generator Pro is enhanced from Shreeram's original Python QR code generator script, now optimized for modern serverless deployment on Vercel.
+This QR Generator script optimized for modern serverless deployment on Vercel.
 
 **Features:**
-- Based on Shreeram's original QR generation algorithm
 - Enhanced with beautiful web interface
 - Optimized for Vercel serverless deployment
 - Production-ready with modern web technologies
